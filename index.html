@@ -3,75 +3,970 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ducha térmica / TEST MQTT</title>
+  <title>Sistema térmico de dos tanques</title>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
   <style>
-    :root {
-      --bg:#20161d; --panel:#3b2630; --panel2:#4f3039; --cream:#ffe6bd;
-      --coffee:#b8784f; --latte:#e3b57d; --pink:#f2a7a4; --blue:#8cc8d8;
-      --mint:#9fd6a3; --red:#e46f68; --yellow:#ffd36e; --ink:#1b1117;
-      --white:#fff7e8; --muted:#d0a98f; --shadow:#0f0910; --px:4px;
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+    :root{
+      --black:#000000;
+      --navy:#000048;
+      --deep:#242448;
+      --violet:#24246c;
+      --teal:#244848;
+      --green:#48b46c;
+      --grass:#248c24;
+      --sky:#6c90fc;
+      --water:#90d8fc;
+      --cyan:#6cb4d8;
+      --pink:#fc90d8;
+      --magenta:#b46cd8;
+      --red:#d84848;
+      --orange:#fcb448;
+      --yellow:#d8d848;
+      --white:#fcfcfc;
+      --muted:#d8d8fc;
+      --shadow:6px 6px 0 var(--black);
     }
+
     *{box-sizing:border-box}
-    body{
-      margin:0; min-height:100vh; color:var(--white);
-      background:linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px),
-        linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
-        radial-gradient(circle at 18% 16%,rgba(242,167,164,.24),transparent 28%),
-        radial-gradient(circle at 82% 14%,rgba(140,200,216,.22),transparent 22%),
-        linear-gradient(135deg,#1c1219,#2d1c24 58%,#402432);
-      background-size:18px 18px,18px 18px,auto,auto,auto;
-      font-family:"Courier New",ui-monospace,monospace; image-rendering:pixelated;
+
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:
+        linear-gradient(180deg,var(--sky) 0 92px,var(--magenta) 92px 184px,var(--red) 184px 276px,var(--navy) 276px 100%);
+      color:var(--white);
+      font-family:'VT323', monospace;
     }
-    .wrap{width:min(1180px,calc(100% - 26px));margin:0 auto;padding:24px 0 40px}
-    .topbar{border:var(--px) solid var(--ink);background:var(--panel);box-shadow:8px 8px 0 var(--shadow);padding:18px;margin-bottom:18px;display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
-    .kicker{color:var(--latte);font-size:13px;letter-spacing:2px;text-transform:uppercase;font-weight:bold}
-    h1{margin:8px 0 6px;color:var(--cream);text-shadow:4px 4px 0 var(--ink);font-size:clamp(28px,5vw,58px);line-height:.95}
-    .sub{color:var(--muted);line-height:1.5;max-width:760px;margin:0;font-size:14px}
-    .conn{border:var(--px) solid var(--ink);background:var(--coffee);padding:12px 14px;color:var(--ink);font-weight:bold;box-shadow:5px 5px 0 var(--shadow);min-width:190px;text-align:center}.conn.ok{background:var(--mint)}
-    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.card{border:var(--px) solid var(--ink);background:var(--panel);box-shadow:8px 8px 0 var(--shadow);padding:18px}.card h2{margin:0 0 14px;color:var(--cream);text-shadow:3px 3px 0 var(--ink);font-size:22px}
-    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.metric{border:var(--px) solid var(--ink);background:var(--panel2);padding:12px;min-height:92px}.metric .label{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:bold;min-height:26px}.metric .value{margin-top:8px;font-size:26px;color:var(--yellow);font-weight:bold;text-shadow:3px 3px 0 var(--ink)}.unit{font-size:12px;color:var(--cream)}
-    .scene{border:var(--px) solid var(--ink);background:#2a1b26;min-height:290px;padding:16px;position:relative;overflow:hidden}.pixel-sky{position:absolute;inset:0;background:linear-gradient(90deg,transparent 0 14px,rgba(255,255,255,.04) 14px 18px),linear-gradient(transparent 0 14px,rgba(255,255,255,.04) 14px 18px);background-size:36px 36px;opacity:.6}.pixel-star{position:absolute;width:8px;height:8px;background:var(--cream);box-shadow:64px 28px 0 var(--pink),160px 52px 0 var(--blue),230px 18px 0 var(--yellow),330px 60px 0 var(--mint),430px 24px 0 var(--cream)}
-    .machine{position:relative;z-index:2;display:grid;grid-template-columns:180px 1fr;gap:18px;align-items:center;min-height:250px}.tank{width:160px;height:220px;border:var(--px) solid var(--ink);background:#53323a;position:relative;box-shadow:7px 7px 0 var(--shadow);margin:0 auto}.tank:before{content:"TANQUE";position:absolute;top:-28px;left:-4px;color:var(--cream);font-weight:bold;background:var(--ink);padding:4px 8px;font-size:12px}.water{position:absolute;left:0;right:0;bottom:0;height:calc(var(--level,0)*1%);background:linear-gradient(90deg,rgba(255,255,255,.18) 0 12px,transparent 12px 24px),linear-gradient(var(--blue),#5cabc0);background-size:24px 24px,auto;border-top:var(--px) solid var(--ink)}.heater{position:absolute;left:24px;right:24px;bottom:20px;height:16px;background:var(--red);border:var(--px) solid var(--ink);box-shadow:0 -18px 0 rgba(228,111,104,.23);opacity:.45}.heater.on{opacity:1;background:var(--yellow);box-shadow:0 -18px 0 rgba(255,211,110,.45),0 -36px 0 rgba(255,211,110,.2)}
-    .state-box{border:var(--px) solid var(--ink);background:var(--panel2);padding:16px;box-shadow:6px 6px 0 var(--shadow)}.state-big{color:var(--cream);font-size:clamp(24px,4vw,44px);font-weight:bold;line-height:1;text-shadow:4px 4px 0 var(--ink);margin-bottom:12px}.state-desc{color:var(--muted);line-height:1.45;font-size:14px}.bar{margin-top:14px;border:var(--px) solid var(--ink);height:28px;background:var(--ink);padding:4px}.bar-fill{height:100%;width:calc(var(--progress,0)*1%);background:linear-gradient(90deg,var(--coffee),var(--yellow))}
-    .formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}label{display:block;color:var(--latte);font-weight:bold;margin-bottom:6px;font-size:13px}input,select{width:100%;border:var(--px) solid var(--ink);background:var(--cream);color:var(--ink);padding:10px;font-family:inherit;font-size:15px;font-weight:bold;outline:none;box-shadow:4px 4px 0 var(--shadow)}.buttons{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}button{border:var(--px) solid var(--ink);background:var(--coffee);color:var(--ink);font-family:inherit;font-weight:bold;font-size:14px;padding:11px 14px;cursor:pointer;box-shadow:5px 5px 0 var(--shadow)}button:hover{transform:translate(1px,1px);box-shadow:4px 4px 0 var(--shadow)}button.start{background:var(--mint)}button.stop{background:var(--red);color:var(--cream)}button.soft{background:var(--latte)}.log{height:220px;overflow:auto;border:var(--px) solid var(--ink);background:#120b10;color:#9fd6a3;padding:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;box-shadow:inset 5px 5px 0 #000}.note{color:var(--muted);font-size:13px;line-height:1.45;margin-top:12px}.full{grid-column:1/-1}
-    @media(max-width:940px){.topbar,.grid,.machine{grid-template-columns:1fr}.metrics,.formgrid{grid-template-columns:repeat(2,1fr)}.conn{width:100%}}@media(max-width:560px){.metrics,.formgrid{grid-template-columns:1fr}}
+
+    .page{
+      width:min(1320px,calc(100% - 20px));
+      margin:10px auto 28px;
+    }
+
+    .window{
+      border:5px solid var(--black);
+      background:var(--deep);
+      box-shadow:var(--shadow);
+      margin-bottom:16px;
+    }
+
+    .titlebar{
+      background:repeating-linear-gradient(90deg,var(--water) 0 10px,var(--cyan) 10px 20px,var(--sky) 20px 30px,#90b4fc 30px 40px);
+      color:var(--black);
+      border-bottom:5px solid var(--black);
+      padding:10px 12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      font-family:'Press Start 2P', cursive;
+      font-size:11px;
+      line-height:1.35;
+      text-transform:uppercase;
+    }
+
+    .dots{display:flex;gap:6px}
+    .dots span{display:block;width:12px;height:12px;border:3px solid var(--black);background:var(--white)}
+
+    .hero{
+      background:linear-gradient(180deg,#00006c 0 62%,var(--grass) 62% 100%);
+      position:relative;
+      overflow:hidden;
+      padding:22px 18px 20px;
+    }
+
+    .sun{
+      position:absolute;
+      right:28px;
+      top:22px;
+      width:74px;
+      height:74px;
+      border:5px solid var(--black);
+      background:repeating-linear-gradient(180deg,var(--yellow) 0 10px,var(--orange) 10px 20px);
+      box-shadow:5px 5px 0 var(--pink);
+    }
+
+    .pipe{
+      position:absolute;
+      right:176px;
+      bottom:0;
+      width:54px;
+      height:92px;
+      border-left:5px solid var(--black);
+      border-right:5px solid var(--black);
+      border-top:5px solid var(--black);
+      background:var(--grass);
+    }
+
+    .pipe:before{
+      content:"";
+      position:absolute;
+      left:-10px;
+      top:-20px;
+      width:64px;
+      height:20px;
+      border:5px solid var(--black);
+      border-bottom:none;
+      background:var(--green);
+    }
+
+    .cloud,.cloud:before,.cloud:after{
+      position:absolute;
+      background:var(--white);
+      border:5px solid var(--black);
+      content:"";
+      width:34px;
+      height:22px;
+    }
+
+    .cloud{right:150px;top:30px}
+    .cloud:before{left:-28px;top:10px}
+    .cloud:after{left:26px;top:6px}
+
+    h1{
+      margin:0 0 16px;
+      font-family:'Press Start 2P', cursive;
+      font-size:clamp(27px,4vw,54px);
+      line-height:1.18;
+      color:var(--white);
+      text-shadow:4px 4px 0 var(--black);
+      max-width:880px;
+    }
+
+    .hero-box{
+      max-width:880px;
+      background:var(--violet);
+      border:5px solid var(--black);
+      padding:12px 14px;
+      box-shadow:5px 5px 0 var(--black);
+      color:var(--water);
+      font-size:19px;
+      line-height:1.35;
+    }
+
+    .hero-box b{color:var(--white)}
+
+    .conn-banner{
+      margin-top:14px;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      background:var(--yellow);
+      border:5px solid var(--black);
+      color:var(--black);
+      padding:8px 12px;
+      box-shadow:5px 5px 0 var(--black);
+      font-family:'Press Start 2P', cursive;
+      font-size:11px;
+    }
+
+    .led{
+      width:14px;height:14px;border:3px solid var(--black);background:var(--red);
+    }
+
+    .led.on{background:var(--green)}
+
+    .grid{
+      display:grid;
+      grid-template-columns:1.22fr 0.78fr;
+      gap:16px;
+      align-items:start;
+    }
+
+    .panel{padding:16px}
+
+    .metrics{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    .metric{
+      background:var(--violet);
+      border:5px solid var(--black);
+      box-shadow:5px 5px 0 var(--black);
+      padding:12px;
+      min-height:104px;
+    }
+
+    .metric .label{
+      font-family:'Press Start 2P', cursive;
+      font-size:10px;
+      line-height:1.45;
+      color:var(--water);
+      min-height:34px;
+    }
+
+    .metric .value{
+      margin-top:8px;
+      font-size:31px;
+      color:var(--yellow);
+      line-height:1;
+      font-weight:bold;
+    }
+
+    .metric .unit{
+      color:var(--white);
+      font-size:17px;
+    }
+
+    .live{
+      border:5px solid var(--black);
+      background:var(--navy);
+      box-shadow:5px 5px 0 var(--black);
+      padding:12px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .live:before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg,transparent 0 24px,#00006c 24px 28px),
+        linear-gradient(transparent 0 24px,#00006c 24px 28px);
+      background-size:28px 28px;
+      opacity:.58;
+      pointer-events:none;
+    }
+
+    .tanks{
+      position:relative;
+      z-index:2;
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:14px;
+      margin-bottom:14px;
+    }
+
+    .tank-card{
+      background:rgba(36,36,108,.82);
+      border:5px solid var(--black);
+      box-shadow:5px 5px 0 var(--black);
+      padding:12px;
+    }
+
+    .tank-title{
+      font-family:'Press Start 2P', cursive;
+      font-size:12px;
+      line-height:1.35;
+      color:var(--white);
+      margin-bottom:10px;
+      text-shadow:3px 3px 0 var(--black);
+    }
+
+    .tank-layout{
+      display:grid;
+      grid-template-columns:142px 1fr;
+      gap:12px;
+      align-items:center;
+    }
+
+    .tank{
+      width:140px;
+      height:210px;
+      border:5px solid var(--black);
+      background:var(--deep);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .water-fill{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      height:calc(var(--level,0) * 1%);
+      background:repeating-linear-gradient(90deg,var(--sky) 0 14px,var(--water) 14px 28px,var(--cyan) 28px 42px);
+      border-top:5px solid var(--black);
+    }
+
+    .heater{
+      position:absolute;
+      left:18px;
+      right:18px;
+      bottom:18px;
+      height:18px;
+      border:4px solid var(--black);
+      background:repeating-linear-gradient(90deg,#904848 0 10px,var(--red) 10px 20px);
+      z-index:3;
+    }
+
+    .heater.on{
+      background:repeating-linear-gradient(90deg,var(--red) 0 8px,var(--orange) 8px 16px,var(--yellow) 16px 24px);
+    }
+
+    .tank-data{
+      color:var(--water);
+      font-size:19px;
+      line-height:1.25;
+    }
+
+    .tank-data b{
+      color:var(--yellow);
+      font-size:24px;
+    }
+
+    .state-panel{
+      position:relative;
+      z-index:2;
+      border:5px solid var(--black);
+      background:rgba(36,36,72,.95);
+      box-shadow:5px 5px 0 var(--black);
+      padding:16px;
+    }
+
+    .state-title{
+      font-family:'Press Start 2P', cursive;
+      font-size:clamp(22px,3vw,40px);
+      line-height:1.2;
+      color:var(--white);
+      text-shadow:4px 4px 0 var(--black);
+      margin-bottom:14px;
+    }
+
+    .state-desc{
+      color:var(--water);
+      font-size:20px;
+      line-height:1.35;
+      margin-bottom:14px;
+    }
+
+    .flags{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+    }
+
+    .flag{
+      border:5px solid var(--black);
+      box-shadow:4px 4px 0 var(--black);
+      padding:8px;
+      color:var(--black);
+      background:var(--orange);
+      font-family:'Press Start 2P', cursive;
+      font-size:10px;
+      line-height:1.45;
+    }
+
+    .flag.ok{background:var(--green)}
+    .flag.bad{background:var(--red);color:var(--white)}
+    .flag.info{background:var(--sky)}
+
+    .stack{display:grid;gap:16px}
+
+    .form-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px 12px;
+    }
+
+    label{
+      display:block;
+      font-family:'Press Start 2P', cursive;
+      font-size:10px;
+      line-height:1.45;
+      color:var(--orange);
+      margin-bottom:8px;
+    }
+
+    input{
+      width:100%;
+      border:5px solid var(--black);
+      background:var(--white);
+      color:var(--black);
+      box-shadow:4px 4px 0 var(--black);
+      padding:12px;
+      outline:none;
+      font-family:'VT323',monospace;
+      font-size:20px;
+    }
+
+    .btn-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    button{
+      border:5px solid var(--black);
+      box-shadow:4px 4px 0 var(--black);
+      padding:10px 14px;
+      cursor:pointer;
+      font-family:'Press Start 2P', cursive;
+      font-size:11px;
+      line-height:1.35;
+      color:var(--black);
+      background:var(--white);
+    }
+
+    button:hover{
+      transform:translate(2px,2px);
+      box-shadow:2px 2px 0 var(--black);
+    }
+
+    .connect{background:var(--sky)}
+    .disconnect{background:var(--orange)}
+    .start{background:var(--green)}
+    .stop{background:var(--red);color:var(--white)}
+    .soft{background:var(--yellow)}
+
+    .help{
+      margin-top:14px;
+      background:var(--teal);
+      border:5px solid var(--black);
+      box-shadow:4px 4px 0 var(--black);
+      color:var(--water);
+      padding:12px;
+      font-size:18px;
+      line-height:1.35;
+    }
+
+    .log{
+      background:var(--black);
+      color:#90fc90;
+      border:5px solid var(--black);
+      box-shadow:inset 4px 4px 0 var(--deep);
+      padding:10px;
+      height:230px;
+      overflow:auto;
+      font-size:18px;
+      line-height:1.25;
+      white-space:pre-wrap;
+    }
+
+    .full{grid-column:1/-1}
+
+    @media(max-width:1100px){
+      .grid{grid-template-columns:1fr}
+      .sun,.cloud,.pipe{display:none}
+    }
+
+    @media(max-width:820px){
+      .metrics,.tanks,.form-grid,.flags{grid-template-columns:1fr}
+      .tank-layout{grid-template-columns:1fr}
+      .tank{margin:auto}
+    }
   </style>
 </head>
+
 <body>
-  <main class="wrap">
-    <section class="topbar">
-      <div><div class="kicker">ESP32 · MQTT · ensayo sin DS18B20</div><h1>Ducha térmica retro</h1><p class="sub">Prueba preliminar: temperatura estimada por tiempo, nivel por ultrasonido, relay GPIO23 y publicación MQTT.</p></div>
-      <div id="connBox" class="conn">DESCONECTADO</div>
+  <main class="page">
+    <section class="window">
+      <div class="titlebar">
+        <span>SISTEMA TERMICO :: DOS TANQUES</span>
+        <div class="dots"><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="hero">
+        <div class="sun"></div>
+        <div class="cloud"></div>
+        <div class="pipe"></div>
+
+        <h1>CONTROL DE AGUA CALIENTE</h1>
+
+        <div class="hero-box">
+          <b>ESP32 broker:</b> broker.emqx.io:1883<br>
+          <b>Página broker:</b> wss://broker.emqx.io:8084/mqtt
+        </div>
+
+        <div class="conn-banner">
+          <span id="connLed" class="led"></span>
+          <span id="connText">DESCONECTADO</span>
+        </div>
+      </div>
     </section>
+
     <section class="grid">
-      <div class="card"><h2>Panel vivo</h2><div class="metrics"><div class="metric"><div class="label">Temp. simulada</div><div class="value"><span id="temp">--</span><span class="unit"> °C</span></div></div><div class="metric"><div class="label">Nivel</div><div class="value"><span id="level">--</span><span class="unit"> %</span></div></div><div class="metric"><div class="label">Volumen</div><div class="value"><span id="volume">--</span><span class="unit"> ml</span></div></div><div class="metric"><div class="label">Restante</div><div class="value"><span id="remaining">--</span><span class="unit"> s</span></div></div></div><div class="scene"><div class="pixel-sky"></div><div class="pixel-star"></div><div class="machine"><div class="tank"><div id="water" class="water" style="--level:0"></div><div id="heater" class="heater"></div></div><div class="state-box"><div id="state" class="state-big">SIN DATOS</div><div id="desc" class="state-desc">Conecta al broker y espera datos del ESP32.</div><div class="bar"><div id="progressBar" class="bar-fill" style="--progress:0"></div></div></div></div></div><p class="note">Regla: 10 cm = vacío, 5 cm = lleno, lleno = 500 ml. Si el nivel baja durante calentamiento, el relay se apaga.</p></div>
-      <div class="card"><h2>Conexión</h2><div class="formgrid"><div class="full"><label>URL WebSocket MQTT</label><input id="brokerUrl" value="ws://broker.emqx.io:8083/mqtt"></div><div class="full"><label>Tópico base</label><input id="baseTopic" value="upsa/ducha_termica/a2023111625"></div></div><div class="buttons"><button class="start" onclick="connectMqtt()">CONECTAR</button><button class="soft" onclick="disconnectMqtt()">DESCONECTAR</button></div><p class="note">Si el navegador bloquea WS por abrir desde HTTPS, usa: <b>wss://broker.emqx.io:8084/mqtt</b></p><h2 style="margin-top:20px">Control</h2><div class="formgrid"><div><label>Temperatura objetivo °C</label><input id="target" type="number" min="25" max="60" step="0.5" value="40"></div><div><label>Temperatura inicial °C</label><input id="initial" type="number" min="0" max="60" step="0.5" value="20"></div><div><label>Volumen lleno L</label><input id="volumeL" type="number" min="0.05" max="5" step="0.05" value="0.5"></div><div><label>Eficiencia térmica</label><input id="eta" type="number" min="0.2" max="1" step="0.01" value="0.85"></div><div><label>Resistencia Ω</label><input id="ohm" type="number" min="1" max="10000" step="0.1" value="68"></div><div><label>Voltaje red V</label><input id="volt" type="number" min="12" max="260" step="1" value="230"></div></div><div class="buttons"><button class="start" onclick="startHeating()">INICIAR A OBJETIVO</button><button class="stop" onclick="stopHeating()">STOP</button><button class="soft" onclick="resetTest()">RESET</button><button class="soft" onclick="askStatus()">STATUS</button></div></div>
-      <div class="card"><h2>Calibración de nivel</h2><div class="formgrid"><div><label>Distancia vacío cm</label><input id="emptyCm" type="number" min="1" max="200" step="0.1" value="10"></div><div><label>Distancia lleno cm</label><input id="fullCm" type="number" min="1" max="200" step="0.1" value="5"></div><div><label>Nivel mínimo para calentar %</label><input id="minHeat" type="number" min="1" max="100" step="1" value="80"></div></div><div class="buttons"><button class="soft" onclick="sendCalibration()">GUARDAR CALIBRACIÓN</button></div><p class="note">Fórmula: altura agua = vacío_cm - distancia_cm. Nivel % = altura/(vacío_cm - lleno_cm) × 100.</p></div>
-      <div class="card"><h2>Registro</h2><div id="log" class="log"></div></div>
+      <div class="stack">
+        <section class="window">
+          <div class="titlebar">
+            <span>LECTURAS EN VIVO</span>
+            <div class="dots"><span></span><span></span><span></span></div>
+          </div>
+
+          <div class="panel">
+            <div class="metrics">
+              <div class="metric">
+                <div class="label">TEMP. SUPERIOR</div>
+                <div class="value"><span id="tempHeat">--</span><span class="unit"> °C</span></div>
+              </div>
+              <div class="metric">
+                <div class="label">TEMP. INFERIOR</div>
+                <div class="value"><span id="tempDisp">--</span><span class="unit"> °C</span></div>
+              </div>
+              <div class="metric">
+                <div class="label">NIVEL SUPERIOR</div>
+                <div class="value"><span id="levelHeat">--</span><span class="unit"> %</span></div>
+              </div>
+              <div class="metric">
+                <div class="label">NIVEL INFERIOR</div>
+                <div class="value"><span id="levelDisp">--</span><span class="unit"> %</span></div>
+              </div>
+            </div>
+
+            <div class="live">
+              <div class="tanks">
+                <div class="tank-card">
+                  <div class="tank-title">TANQUE SUPERIOR / CALENTAMIENTO</div>
+                  <div class="tank-layout">
+                    <div class="tank">
+                      <div id="waterHeat" class="water-fill" style="--level:0"></div>
+                      <div id="heaterBar" class="heater"></div>
+                    </div>
+                    <div class="tank-data">
+                      Temp: <b id="heatTempText">--</b> °C<br>
+                      Nivel: <b id="heatLevelText">--</b> %<br>
+                      Volumen: <b id="heatVolText">--</b> ml<br>
+                      Distancia: <b id="heatDistText">--</b> cm
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tank-card">
+                  <div class="tank-title">TANQUE INFERIOR / DISPENSADO</div>
+                  <div class="tank-layout">
+                    <div class="tank">
+                      <div id="waterDisp" class="water-fill" style="--level:0"></div>
+                    </div>
+                    <div class="tank-data">
+                      Temp: <b id="dispTempText">--</b> °C<br>
+                      Nivel: <b id="dispLevelText">--</b> %<br>
+                      Volumen: <b id="dispVolText">--</b> ml<br>
+                      Distancia: <b id="dispDistText">--</b> cm
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="state-panel">
+                <div id="stateTitle" class="state-title">SIN DATOS</div>
+                <div id="stateDesc" class="state-desc">
+                  Conecta la página y espera el estado publicado por el ESP32.
+                </div>
+
+                <div class="flags">
+                  <div id="flagHeater" class="flag bad">RELAY OFF</div>
+                  <div id="flagReady" class="flag info">SUPERIOR NO LISTO</div>
+                  <div id="flagTransfer" class="flag info">TRANSFERENCIA NO</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="window">
+          <div class="titlebar">
+            <span>REGISTRO</span>
+            <div class="dots"><span></span><span></span><span></span></div>
+          </div>
+          <div class="panel">
+            <div id="log" class="log"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="window">
+          <div class="titlebar">
+            <span>CONEXION MQTT</span>
+            <div class="dots"><span></span><span></span><span></span></div>
+          </div>
+
+          <div class="panel">
+            <div class="form-grid">
+              <div class="full">
+                <label>URL PAGINA BROKER</label>
+                <input id="brokerUrl" value="wss://broker.emqx.io:8084/mqtt">
+              </div>
+              <div class="full">
+                <label>TOPICO BASE</label>
+                <input id="baseTopic" value="upsa/ducha_termica/a2023111625">
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button class="connect" onclick="connectMqtt()">CONECTAR</button>
+              <button class="disconnect" onclick="disconnectMqtt()">DESCONECTAR</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="window">
+          <div class="titlebar">
+            <span>CONTROL TERMICO</span>
+            <div class="dots"><span></span><span></span><span></span></div>
+          </div>
+
+          <div class="panel">
+            <div class="form-grid">
+              <div>
+                <label>TEMP. OBJETIVO °C</label>
+                <input id="targetInput" type="number" min="25" max="50" step="0.5" value="40">
+              </div>
+              <div>
+                <label>HISTERESIS °C</label>
+                <input id="hystInput" type="number" min="0.2" max="5" step="0.1" value="1">
+              </div>
+              <div>
+                <label>TEMP. MAX. SEGURA °C</label>
+                <input id="safeInput" type="number" min="45" max="80" step="1" value="55">
+              </div>
+              <div>
+                <label>NIVEL MIN. CALENTAR %</label>
+                <input id="minHeatInput" type="number" min="1" max="100" step="1" value="80">
+              </div>
+              <div>
+                <label>RESISTENCIA Ω</label>
+                <input id="ohmInput" type="number" min="1" max="10000" step="0.1" value="68">
+              </div>
+              <div>
+                <label>VOLTAJE V</label>
+                <input id="voltInput" type="number" min="12" max="260" step="1" value="230">
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button class="start" onclick="startSystem()">INICIAR</button>
+              <button class="stop" onclick="stopSystem()">STOP</button>
+              <button class="soft" onclick="resetAlarm()">RESET</button>
+              <button class="soft" onclick="askStatus()">STATUS</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="window">
+          <div class="titlebar">
+            <span>CALIBRACION DE TANQUES</span>
+            <div class="dots"><span></span><span></span><span></span></div>
+          </div>
+
+          <div class="panel">
+            <div class="form-grid">
+              <div>
+                <label>SUP. VACIO CM</label>
+                <input id="heatEmptyInput" type="number" step="0.1" value="10">
+              </div>
+              <div>
+                <label>SUP. LLENO CM</label>
+                <input id="heatFullInput" type="number" step="0.1" value="5">
+              </div>
+              <div>
+                <label>SUP. VOLUMEN ML</label>
+                <input id="heatVolInput" type="number" step="10" value="500">
+              </div>
+              <div>
+                <label>INF. VACIO CM</label>
+                <input id="dispEmptyInput" type="number" step="0.1" value="10">
+              </div>
+              <div>
+                <label>INF. LLENO CM</label>
+                <input id="dispFullInput" type="number" step="0.1" value="5">
+              </div>
+              <div>
+                <label>INF. VOLUMEN ML</label>
+                <input id="dispVolInput" type="number" step="10" value="500">
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button class="soft" onclick="sendCalibration()">GUARDAR CALIBRACION</button>
+            </div>
+
+            <div class="help">
+              Los dos DS18B20 van en el mismo bus OneWire. Por defecto: índice 0 = tanque superior, índice 1 = tanque inferior.
+            </div>
+          </div>
+        </section>
+      </div>
     </section>
   </main>
+
   <script>
-    let client=null,isConnected=false;
-    const $=id=>document.getElementById(id);
-    function log(msg){const time=new Date().toLocaleTimeString();$('log').textContent=`[${time}] ${msg}\n`+$('log').textContent}
-    function setConn(ok,text){isConnected=ok;$('connBox').textContent=text;$('connBox').classList.toggle('ok',ok)}
-    function baseTopic(){return $('baseTopic').value.trim().replace(/\/+$/g,'')}
-    function topics(){const b=baseTopic();return{cmd:`${b}/cmd`,relayCmd:`${b}/relay_cmd`,status:`${b}/status`,log:`${b}/log`,calibration:`${b}/calibration`}}
-    function connectMqtt(){const url=$('brokerUrl').value.trim(),t=topics();if(client&&isConnected){log('Ya conectado.');return}const clientId='WEB_RETRO_DUCHA_'+Math.random().toString(16).slice(2,10);log('Conectando a '+url);client=mqtt.connect(url,{clientId,clean:true,connectTimeout:8000,reconnectPeriod:2000,keepalive:60});client.on('connect',()=>{setConn(true,'CONECTADO');log('Conexión MQTT OK.');client.subscribe([t.status,t.log,t.calibration],err=>{if(err)log('Error al suscribir: '+err.message);else log('Suscrito a status, log y calibration.')})});client.on('close',()=>setConn(false,'DESCONECTADO'));client.on('reconnect',()=>setConn(false,'RECONECTANDO'));client.on('error',err=>log('MQTT error: '+err.message));client.on('message',(topic,payload)=>{const msg=payload.toString(),t=topics();if(topic===t.status)handleStatus(msg);else if(topic===t.log)log('ESP32: '+msg);else if(topic===t.calibration)handleCalibration(msg);else log(topic+': '+msg)})}
-    function disconnectMqtt(){if(client){client.end(true);client=null}setConn(false,'DESCONECTADO');log('Desconectado manualmente.')}
-    function publish(obj){if(!client||!isConnected){log('No conectado. Primero pulsa CONECTAR.');return}const payload=JSON.stringify(obj);client.publish(topics().cmd,payload,{qos:0,retain:false});log('CMD -> '+payload)}
-    function startHeating(){publish({command:'colocar_temperatura',target_c:Number($('target').value),initial_temp_c:Number($('initial').value),volume_l:Number($('volumeL').value),thermal_efficiency:Number($('eta').value),resistance_ohm:Number($('ohm').value),mains_voltage_v:Number($('volt').value)})}
-    function stopHeating(){publish({command:'STOP'})}
-    function resetTest(){publish({command:'RESET'})}
-    function askStatus(){publish({command:'STATUS'})}
-    function sendCalibration(){const empty=Number($('emptyCm').value),full=Number($('fullCm').value);if(Math.abs(empty-full)<.5){log('Calibración inválida.');return}publish({command:'STATUS',empty_cm:empty,full_cm:full,min_level_to_heat_pct:Number($('minHeat').value)})}
-    function handleStatus(msg){try{const d=JSON.parse(msg),temp=Number(d.temp_c),level=Number(d.level_pct),vol=Number(d.estimated_volume_ml),remaining=Number(d.remaining_s),progress=Number(d.progress_pct),heater=Boolean(d.heater);$('temp').textContent=Number.isFinite(temp)?temp.toFixed(1):'--';$('level').textContent=Number.isFinite(level)?level.toFixed(0):'--';$('volume').textContent=Number.isFinite(vol)?vol.toFixed(0):'--';$('remaining').textContent=Number.isFinite(remaining)?remaining.toFixed(0):'--';const safeLevel=Number.isFinite(level)?Math.max(0,Math.min(100,level)):0;const safeProgress=Number.isFinite(progress)?Math.max(0,Math.min(100,progress)):0;$('water').style.setProperty('--level',safeLevel);$('progressBar').style.setProperty('--progress',safeProgress);$('heater').classList.toggle('on',heater);$('state').textContent=pretty(d.state||'SIN_DATOS');let desc='';desc+=`Distancia: ${fmt(d.distance_cm)} cm · Altura agua: ${fmt(d.water_height_cm)} cm · `;desc+=`Potencia: ${fmt(d.power_w)} W · Tiempo ideal: ${fmt(d.heating_time_ideal_s)} s · `;desc+=`Tiempo usado: ${fmt(d.heating_time_real_s)} s. `;if(d.alarm)desc+='Alarma: '+d.alarm;else if(d.state==='CALENTANDO')desc+='Relay activado en GPIO23. Temperatura estimada por tiempo.';else if(d.state==='PUEDE_USARLA')desc+='Ciclo terminado. Puede dispensarse el volumen calentado.';else if(d.state==='SIN_AGUA')desc+='No hay agua suficiente según ultrasonido.';else if(d.state==='HAY_AGUA_PERO_FALTA_NIVEL')desc+='Hay agua, pero falta nivel para el ensayo de 500 ml.';$('desc').textContent=desc;if(Number.isFinite(Number(d.empty_cm)))$('emptyCm').value=Number(d.empty_cm).toFixed(1);if(Number.isFinite(Number(d.full_cm)))$('fullCm').value=Number(d.full_cm).toFixed(1);if(Number.isFinite(Number(d.min_level_to_heat_pct)))$('minHeat').value=Number(d.min_level_to_heat_pct).toFixed(0);if(Number.isFinite(Number(d.target_c)))$('target').value=Number(d.target_c).toFixed(1);if(Number.isFinite(Number(d.initial_temp_c)))$('initial').value=Number(d.initial_temp_c).toFixed(1);if(Number.isFinite(Number(d.volume_l)))$('volumeL').value=Number(d.volume_l).toFixed(2);if(Number.isFinite(Number(d.thermal_efficiency)))$('eta').value=Number(d.thermal_efficiency).toFixed(2);if(Number.isFinite(Number(d.resistance_ohm)))$('ohm').value=Number(d.resistance_ohm).toFixed(1);if(Number.isFinite(Number(d.mains_voltage_v)))$('volt').value=Number(d.mains_voltage_v).toFixed(0)}catch(err){log('Status no JSON: '+msg)}}
-    function handleCalibration(msg){try{const d=JSON.parse(msg);if(Number.isFinite(Number(d.empty_cm)))$('emptyCm').value=Number(d.empty_cm).toFixed(1);if(Number.isFinite(Number(d.full_cm)))$('fullCm').value=Number(d.full_cm).toFixed(1);if(Number.isFinite(Number(d.min_level_to_heat_pct)))$('minHeat').value=Number(d.min_level_to_heat_pct).toFixed(0);log('Calibración: '+(d.message||msg))}catch(err){log('Calibration: '+msg)}}
-    function pretty(s){const map={INICIANDO:'INICIANDO',CALENTANDO:'CALENTANDO',PUEDE_USARLA:'PUEDE USARLA',SIN_AGUA:'SIN AGUA',LISTO_PARA_COLOCAR_TEMPERATURA:'LISTO',NO_SE_PUEDE_INICIAR:'NO INICIA',CORTE_POR_NIVEL:'CORTE NIVEL',ERROR_NIVEL:'ERROR NIVEL',APAGADO:'APAGADO',APAGADO_MANUAL:'APAGADO',HAY_AGUA_PERO_FALTA_NIVEL:'FALTA NIVEL',RESET:'RESET'};return map[s]||String(s).replaceAll('_',' ')}
-    function fmt(v){const n=Number(v);return Number.isFinite(n)?n.toFixed(1):'--'}
-    log('Página lista. Usa broker EMQX por WebSocket.')
+    let client = null;
+    let isConnected = false;
+
+    const $ = (id) => document.getElementById(id);
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      $("log").textContent = `[${time}] ${msg}\n` + $("log").textContent;
+    }
+
+    function setConn(ok, text) {
+      isConnected = ok;
+      $("connText").textContent = text;
+      $("connLed").classList.toggle("on", ok);
+    }
+
+    function baseTopic() {
+      return $("baseTopic").value.trim().replace(/\/+$/g, "");
+    }
+
+    function topics() {
+      const b = baseTopic();
+      return {
+        status: `${b}/status`,
+        cmd: `${b}/cmd`,
+        log: `${b}/log`,
+        calibration: `${b}/calibration`
+      };
+    }
+
+    function connectMqtt() {
+      const url = $("brokerUrl").value.trim();
+
+      if (client && isConnected) {
+        log("Ya estaba conectado.");
+        return;
+      }
+
+      const t = topics();
+      const clientId = "WEB_DUCHA_2T_" + Math.random().toString(16).slice(2, 10);
+
+      log("Conectando a " + url);
+
+      client = mqtt.connect(url, {
+        clientId,
+        clean: true,
+        connectTimeout: 8000,
+        reconnectPeriod: 2500,
+        keepalive: 60
+      });
+
+      client.on("connect", () => {
+        setConn(true, "CONECTADO");
+        log("Conectado al broker MQTT.");
+
+        client.subscribe([t.status, t.log, t.calibration], (err) => {
+          if (err) log("Error al suscribir: " + err.message);
+          else log("Suscrito a status, log y calibration.");
+        });
+      });
+
+      client.on("close", () => setConn(false, "DESCONECTADO"));
+      client.on("reconnect", () => setConn(false, "RECONECTANDO"));
+      client.on("error", (err) => log("Error MQTT: " + err.message));
+
+      client.on("message", (topic, payload) => {
+        const msg = payload.toString();
+        const tp = topics();
+
+        if (topic === tp.status) handleStatus(msg);
+        else if (topic === tp.log) log("ESP32: " + msg);
+        else if (topic === tp.calibration) handleCalibration(msg);
+        else log(`${topic}: ${msg}`);
+      });
+    }
+
+    function disconnectMqtt() {
+      if (client) {
+        client.end(true);
+        client = null;
+      }
+      setConn(false, "DESCONECTADO");
+      log("Desconectado manualmente.");
+    }
+
+    function publish(obj) {
+      if (!client || !isConnected) {
+        log("No conectado. Pulsa CONECTAR primero.");
+        return;
+      }
+
+      const payload = JSON.stringify(obj);
+      client.publish(topics().cmd, payload, { qos: 0, retain: false });
+      log("CMD -> " + payload);
+    }
+
+    function commonConfig() {
+      return {
+        target_c: Number($("targetInput").value),
+        hysteresis_c: Number($("hystInput").value),
+        max_safe_temp_c: Number($("safeInput").value),
+        min_heat_level_pct: Number($("minHeatInput").value),
+        resistance_ohm: Number($("ohmInput").value),
+        mains_voltage_v: Number($("voltInput").value)
+      };
+    }
+
+    function startSystem() {
+      publish({
+        command: "START",
+        ...commonConfig()
+      });
+    }
+
+    function stopSystem() {
+      publish({ command: "STOP" });
+    }
+
+    function resetAlarm() {
+      publish({ command: "RESET" });
+    }
+
+    function askStatus() {
+      publish({ command: "STATUS" });
+    }
+
+    function sendCalibration() {
+      publish({
+        command: "STATUS",
+        ...commonConfig(),
+        heat_empty_cm: Number($("heatEmptyInput").value),
+        heat_full_cm: Number($("heatFullInput").value),
+        heat_full_volume_ml: Number($("heatVolInput").value),
+        disp_empty_cm: Number($("dispEmptyInput").value),
+        disp_full_cm: Number($("dispFullInput").value),
+        disp_full_volume_ml: Number($("dispVolInput").value)
+      });
+    }
+
+    function handleStatus(msg) {
+      try {
+        const d = JSON.parse(msg);
+        const heat = d.tank_heating || {};
+        const disp = d.tank_dispensing || {};
+
+        const heatTemp = num(heat.temp_c);
+        const dispTemp = num(disp.temp_c);
+        const heatLevel = num(heat.level_pct);
+        const dispLevel = num(disp.level_pct);
+        const heatVol = num(heat.volume_ml);
+        const dispVol = num(disp.volume_ml);
+        const heatDist = num(heat.distance_cm);
+        const dispDist = num(disp.distance_cm);
+
+        $("tempHeat").textContent = fmt(heatTemp, 1);
+        $("tempDisp").textContent = fmt(dispTemp, 1);
+        $("levelHeat").textContent = fmt(heatLevel, 0);
+        $("levelDisp").textContent = fmt(dispLevel, 0);
+
+        $("heatTempText").textContent = fmt(heatTemp, 1);
+        $("dispTempText").textContent = fmt(dispTemp, 1);
+        $("heatLevelText").textContent = fmt(heatLevel, 0);
+        $("dispLevelText").textContent = fmt(dispLevel, 0);
+        $("heatVolText").textContent = fmt(heatVol, 0);
+        $("dispVolText").textContent = fmt(dispVol, 0);
+        $("heatDistText").textContent = fmt(heatDist, 1);
+        $("dispDistText").textContent = fmt(dispDist, 1);
+
+        $("waterHeat").style.setProperty("--level", safePct(heatLevel));
+        $("waterDisp").style.setProperty("--level", safePct(dispLevel));
+        $("heaterBar").classList.toggle("on", Boolean(d.heater));
+
+        $("stateTitle").textContent = pretty(d.state || "SIN_DATOS");
+
+        let desc = "";
+        desc += `Objetivo: ${fmt(num(d.target_c),1)} °C · `;
+        desc += `Potencia estimada: ${fmt(num(d.power_w),1)} W · `;
+        desc += `Tiempo ideal hasta objetivo: ${fmt(num(d.ideal_seconds_to_target),1)} s. `;
+
+        if (d.alarm) {
+          desc += "Alarma: " + d.alarm;
+        } else if (d.state === "CALENTANDO") {
+          desc += "El tanque superior está calentando con control real por DS18B20.";
+        } else if (d.state === "LISTO_PARA_TRANSFERIR") {
+          desc += "El tanque superior llegó a temperatura y el tanque inferior tiene espacio.";
+        } else if (d.state === "AGUA_SUPERIOR_LISTA") {
+          desc += "El tanque superior llegó a temperatura.";
+        } else if (d.state === "NIVEL_SUPERIOR_BAJO") {
+          desc += "No se permite calentar porque falta agua en el tanque superior.";
+        }
+
+        $("stateDesc").textContent = desc;
+
+        $("flagHeater").textContent = d.heater ? "RELAY ON" : "RELAY OFF";
+        $("flagHeater").className = d.heater ? "flag ok" : "flag bad";
+
+        $("flagReady").textContent = d.upper_ready ? "SUPERIOR LISTO" : "SUPERIOR NO LISTO";
+        $("flagReady").className = d.upper_ready ? "flag ok" : "flag info";
+
+        $("flagTransfer").textContent = d.can_transfer ? "TRANSFERIR SI" : "TRANSFERENCIA NO";
+        $("flagTransfer").className = d.can_transfer ? "flag ok" : "flag info";
+
+        syncInputs(d, heat, disp);
+      } catch (err) {
+        log("Status no JSON: " + msg);
+      }
+    }
+
+    function handleCalibration(msg) {
+      try {
+        const d = JSON.parse(msg);
+
+        if (Number.isFinite(num(d.heat_empty_cm))) $("heatEmptyInput").value = num(d.heat_empty_cm).toFixed(1);
+        if (Number.isFinite(num(d.heat_full_cm))) $("heatFullInput").value = num(d.heat_full_cm).toFixed(1);
+        if (Number.isFinite(num(d.heat_full_volume_ml))) $("heatVolInput").value = num(d.heat_full_volume_ml).toFixed(0);
+
+        if (Number.isFinite(num(d.disp_empty_cm))) $("dispEmptyInput").value = num(d.disp_empty_cm).toFixed(1);
+        if (Number.isFinite(num(d.disp_full_cm))) $("dispFullInput").value = num(d.disp_full_cm).toFixed(1);
+        if (Number.isFinite(num(d.disp_full_volume_ml))) $("dispVolInput").value = num(d.disp_full_volume_ml).toFixed(0);
+
+        if (Number.isFinite(num(d.min_heat_level_pct))) $("minHeatInput").value = num(d.min_heat_level_pct).toFixed(0);
+
+        log("Calibración recibida.");
+      } catch (err) {
+        log("Calibration: " + msg);
+      }
+    }
+
+    function syncInputs(d, heat, disp) {
+      if (Number.isFinite(num(d.target_c))) $("targetInput").value = num(d.target_c).toFixed(1);
+      if (Number.isFinite(num(d.hysteresis_c))) $("hystInput").value = num(d.hysteresis_c).toFixed(1);
+      if (Number.isFinite(num(d.max_safe_temp_c))) $("safeInput").value = num(d.max_safe_temp_c).toFixed(0);
+      if (Number.isFinite(num(d.resistance_ohm))) $("ohmInput").value = num(d.resistance_ohm).toFixed(1);
+      if (Number.isFinite(num(d.mains_voltage_v))) $("voltInput").value = num(d.mains_voltage_v).toFixed(0);
+
+      if (Number.isFinite(num(heat.min_level_pct))) $("minHeatInput").value = num(heat.min_level_pct).toFixed(0);
+
+      if (Number.isFinite(num(heat.empty_cm))) $("heatEmptyInput").value = num(heat.empty_cm).toFixed(1);
+      if (Number.isFinite(num(heat.full_cm))) $("heatFullInput").value = num(heat.full_cm).toFixed(1);
+      if (Number.isFinite(num(heat.full_volume_ml))) $("heatVolInput").value = num(heat.full_volume_ml).toFixed(0);
+
+      if (Number.isFinite(num(disp.empty_cm))) $("dispEmptyInput").value = num(disp.empty_cm).toFixed(1);
+      if (Number.isFinite(num(disp.full_cm))) $("dispFullInput").value = num(disp.full_cm).toFixed(1);
+      if (Number.isFinite(num(disp.full_volume_ml))) $("dispVolInput").value = num(disp.full_volume_ml).toFixed(0);
+    }
+
+    function pretty(s) {
+      const map = {
+        "INICIANDO": "INICIANDO",
+        "APAGADO": "APAGADO",
+        "APAGADO_MANUAL": "APAGADO MANUAL",
+        "CALENTANDO": "CALENTANDO",
+        "LISTO_PARA_TRANSFERIR": "LISTO PARA TRANSFERIR",
+        "AGUA_SUPERIOR_LISTA": "AGUA SUPERIOR LISTA",
+        "NIVEL_SUPERIOR_BAJO": "NIVEL SUPERIOR BAJO",
+        "ERROR_TEMP_SUPERIOR": "ERROR TEMP. SUPERIOR",
+        "ERROR_NIVEL_SUPERIOR": "ERROR NIVEL SUPERIOR",
+        "SOBRETEMPERATURA": "SOBRETEMPERATURA",
+        "ALARMA": "ALARMA",
+        "RESET": "RESET"
+      };
+
+      return map[s] || String(s).replaceAll("_", " ");
+    }
+
+    function num(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function fmt(v, dec) {
+      return Number.isFinite(v) ? v.toFixed(dec) : "--";
+    }
+
+    function safePct(v) {
+      return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+    }
+
+    log("Página lista para dos ultrasonidos y dos temperaturas.");
   </script>
 </body>
 </html>
