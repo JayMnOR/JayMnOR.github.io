@@ -452,6 +452,104 @@
       .tank-layout{grid-template-columns:1fr}
       .tank{margin:auto}
     }
+  
+
+    /* ==========================================================
+       FIX ANTI-DESBORDE
+       El problema aparecia al iniciar porque el JSON MQTT largo
+       del comando/estado entraba en el registro y obligaba al grid
+       a hacerse mas ancho que la pantalla.
+       ========================================================== */
+    html, body{
+      max-width:100%;
+      overflow-x:hidden;
+    }
+
+    .page,
+    .grid,
+    .stack,
+    .window,
+    .panel,
+    .live,
+    .tanks,
+    .tank-card,
+    .tank-layout,
+    .state-panel,
+    .form-grid,
+    .metric,
+    .hero,
+    .hero-box,
+    .help,
+    .log{
+      min-width:0;
+      max-width:100%;
+    }
+
+    .grid{
+      grid-template-columns:minmax(0,1.18fr) minmax(340px,.82fr);
+    }
+
+    .metrics{
+      grid-template-columns:repeat(4,minmax(0,1fr));
+    }
+
+    .tanks{
+      grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .form-grid{
+      grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .tank-layout{
+      grid-template-columns:150px minmax(0,1fr);
+    }
+
+    .titlebar,
+    .titlebar span,
+    .hero-box,
+    .metric .label,
+    .metric .value,
+    .tank-title,
+    .tank-data,
+    .state-title,
+    .state-desc,
+    .flag,
+    .help,
+    label{
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    input,
+    select,
+    button{
+      min-width:0;
+      max-width:100%;
+    }
+
+    .log{
+      overflow-y:auto;
+      overflow-x:hidden;
+      white-space:pre-wrap;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+      contain:content;
+    }
+
+    @media(max-width:1250px){
+      .grid{grid-template-columns:1fr;}
+    }
+
+    @media(max-width:900px){
+      .metrics,
+      .tanks,
+      .form-grid,
+      .flags{grid-template-columns:1fr;}
+      .tank-layout{grid-template-columns:1fr;}
+      .tank-border{margin:auto;}
+    }
+
   </style>
 </head>
 
@@ -695,7 +793,19 @@
 
     function log(msg) {
       const time = new Date().toLocaleTimeString();
-      $("log").textContent = `[${time}] ${msg}\n` + $("log").textContent;
+      let text = String(msg ?? "");
+
+      // Evita que un JSON MQTT muy largo ensanche toda la pagina.
+      if (text.length > 700) {
+        text = text.slice(0, 700) + " ... [recortado]";
+      }
+
+      const logBox = $("log");
+      const previous = logBox.textContent || "";
+      const merged = `[${time}] ${text}\n` + previous;
+
+      // Mantiene el registro liviano para que no crezca sin limite.
+      logBox.textContent = merged.split("\n").slice(0, 90).join("\n");
     }
 
     function setConn(ok, text) {
