@@ -218,9 +218,10 @@
         <h1>DUCHA TERMICA ESP32</h1>
         <div class="hero-box">
           <b>Sensores térmicos:</b> NTC 100K en divisor de tensión · superior GPIO35 · inferior GPIO34<br>
-          <b>Tanque:</b> cono truncado · diámetro inferior 15 cm · diámetro superior 19.50 cm<br>
-          <b>Calibración:</b> 19.2 cm vacío / 14.9 cm = 1 L corregido por medición real<br>
-          <b>Resistencia:</b> 9.1 Ω · 230 V · potencia aprox. 5813 W · corriente aprox. 25.3 A
+          <b>Tanque:</b> cono truncado · diámetro inferior 16.5 cm · diámetro superior 19.0 cm<br>
+          <b>Calibración:</b> 20.0 cm vacío / 10.3 cm = 2500 ml corregido por medición real<br>
+          <b>Resistencia:</b> 9.1 Ω · 230 V · potencia aprox. 5813 W · corriente aprox. 25.3 A<br>
+          <b>Compensación:</b> durante calentamiento, TEMP. PROMEDIO = lectura inicial + 2×incremento NTC
         </div>
         <div class="conn-banner"><span id="connLed" class="led"></span><span id="connText">DESCONECTADO</span></div>
       </div>
@@ -232,7 +233,7 @@
           <div class="titlebar"><span>LECTURAS EN VIVO</span><div class="dots"><span></span><span></span><span></span></div></div>
           <div class="panel">
             <div class="metrics">
-              <div class="metric"><div class="label">TEMP. CONTROL</div><div class="value"><span id="tempControl">--</span><span class="unit"> °C</span></div></div>
+              <div class="metric"><div class="label">TEMP. PROMEDIO</div><div class="value"><span id="tempControl">--</span><span class="unit"> °C</span></div></div>
               <div class="metric"><div class="label">VOLUMEN SUP.</div><div class="value"><span id="volHeat">--</span><span class="unit"> ml</span></div></div>
               <div class="metric"><div class="label">LLENADO OBJ.</div><div class="value"><span id="targetFillPct">--</span><span class="unit"> %</span></div></div>
               <div class="metric"><div class="label">TIEMPO CALC.</div><div class="value"><span id="timeCalc">--</span><span class="unit"> s</span></div></div>
@@ -245,7 +246,7 @@
                   <div class="tank-layout">
                     <div class="tank-border"><div class="tank"><div id="waterHeat" class="water-fill" style="--level:0"></div><div id="targetLineHeat" class="target-line" style="--target:0"></div><div id="heaterBar" class="heater"></div></div></div>
                     <div class="tank-data">
-                      Volumen: <b id="heatVolText">--</b> ml<br>Capacidad: <b id="heatLevelText">--</b> %<br>Del objetivo: <b id="heatTargetText">--</b> %<br>Distancia: <b id="heatDistText">--</b> cm<br>Temp NTC: <b id="heatTempText">--</b> °C<br>Estado: <b id="heatStateText">--</b>
+                      Volumen: <b id="heatVolText">--</b> ml<br>Capacidad: <b id="heatLevelText">--</b> %<br>Del objetivo: <b id="heatTargetText">--</b> %<br>Distancia: <b id="heatDistText">--</b> cm<br>Temp NTC real: <b id="heatTempText">--</b> °C<br>Estado: <b id="heatStateText">--</b>
                     </div>
                   </div>
                 </div>
@@ -255,7 +256,7 @@
                   <div class="tank-layout">
                     <div class="tank-border"><div class="tank"><div id="waterDisp" class="water-fill" style="--level:0"></div><div id="targetLineDisp" class="target-line" style="--target:0"></div></div></div>
                     <div class="tank-data">
-                      Volumen: <b id="dispVolText">--</b> ml<br>Capacidad: <b id="dispLevelText">--</b> %<br>Del objetivo: <b id="dispTargetText">--</b> %<br>Distancia: <b id="dispDistText">--</b> cm<br>Temp NTC: <b id="dispTempText">--</b> °C<br>Estado: <b id="dispStateText">--</b>
+                      Volumen: <b id="dispVolText">--</b> ml<br>Capacidad: <b id="dispLevelText">--</b> %<br>Del objetivo: <b id="dispTargetText">--</b> %<br>Distancia: <b id="dispDistText">--</b> cm<br>Temp NTC real: <b id="dispTempText">--</b> °C<br>Estado: <b id="dispStateText">--</b>
                     </div>
                   </div>
                 </div>
@@ -297,25 +298,32 @@
           <div class="titlebar"><span>MODO Y CONTROL</span><div class="dots"><span></span><span></span><span></span></div></div>
           <div class="panel">
             <div class="form-grid">
-              <div class="full"><label>MODO DE CONTROL</label><select id="modeInput"><option value="TEMP">CON NTC: control por temperatura hasta objetivo</option><option value="OPEN_LOOP">SIN NTC: lazo abierto por tiempo calculado</option></select></div>
+              <div class="full"><label>MODO DE CONTROL</label><select id="modeInput"><option value="TEMP">CON NTC: control por temperatura promedio compensada</option></select></div>
               <div class="full checkrow"><input id="tempEnabledInput" type="checkbox" checked><span>Hay NTC 100K conectados</span></div>
+              <div class="full checkrow"><input id="lagEnabledInput" type="checkbox" checked><span>Compensar lag térmico durante calentamiento</span></div>
               <div><label>TEMP. OBJETIVO °C</label><input id="targetInput" type="number" min="25" max="60" step="0.5" value="40"></div>
               <div><label>TEMP. INICIAL °C</label><input id="initialInput" type="number" min="0" max="90" step="0.5" value="20"></div>
               <div><label>HISTERESIS °C</label><input id="hystInput" type="number" min="0.1" max="10" step="0.1" value="1"></div>
+              <div><label>FACTOR LAG TEMP</label><input id="lagFactorInput" type="number" min="1" max="4" step="0.1" value="2"></div>
               <div><label>TEMP. MAX. SEGURA °C</label><input id="safeInput" type="number" min="30" max="95" step="1" value="55"></div>
-              <div><label>VOLUMEN OBJETIVO ML</label><input id="targetVolInput" type="number" min="50" max="5000" step="10" value="1000"></div>
+              <div><label>VOLUMEN OBJETIVO ML</label><input id="targetVolInput" type="number" min="50" max="5000" step="10" value="2500"></div>
               <div><label>MIN. DEL OBJETIVO %</label><input id="minTargetInput" type="number" min="1" max="100" step="1" value="80"></div>
               <div><label>RESISTENCIA Ω</label><input id="ohmInput" type="number" min="0.5" max="10000" step="0.1" value="9.1"></div>
               <div><label>VOLTAJE V</label><input id="voltInput" type="number" min="12" max="260" step="1" value="230"></div>
               <div><label>EFICIENCIA TERMICA</label><input id="effInput" type="number" min="0.2" max="1" step="0.01" value="0.85"></div>
               <div><label>ESPACIO INF. MAX %</label><input id="lowerSpaceInput" type="number" min="1" max="100" step="1" value="95"></div>
+              <div style="display:none"><label>FACTOR LIMITE TIEMPO</label><input id="hybridFactorInput" type="number" min="0.5" max="1" step="0.01" value="0.88"></div>
+              <div style="display:none"><label>ESPERA ESTABILIZACION s</label><input id="hybridWaitInput" type="number" min="0" max="30" step="0.5" value="7"></div>
+              <div style="display:none"><label>TOLERANCIA TEMP °C</label><input id="hybridTolInput" type="number" min="0" max="5" step="0.1" value="0.7"></div>
+              <div style="display:none"><label>PULSO CORRECCION s</label><input id="hybridPulseInput" type="number" min="0.1" max="5" step="0.1" value="0.8"></div>
+              <div style="display:none"><label>MAX. CORRECCIONES</label><input id="hybridMaxPulsesInput" type="number" min="0" max="20" step="1" value="5"></div>
               <div><label>OFFSET NTC SUP °C</label><input id="heatOffsetInput" type="number" min="-20" max="20" step="0.1" value="0"></div>
               <div><label>OFFSET NTC INF °C</label><input id="dispOffsetInput" type="number" min="-20" max="20" step="0.1" value="0"></div>
               <div><label>R FIJA Ω</label><input id="ntcFixedInput" type="number" min="1000" max="1000000" step="100" value="100000"></div>
               <div><label>BETA K</label><input id="ntcBetaInput" type="number" min="1000" max="10000" step="10" value="3950"></div>
             </div>
             <div class="btn-row"><button class="start" onclick="startSystem()">INICIAR</button><button class="stop" onclick="stopSystem()">STOP</button><button class="soft" onclick="resetSystem()">RESET</button><button class="soft" onclick="sendConfig()">GUARDAR CONFIG</button><button class="soft" onclick="askStatus()">STATUS</button></div>
-            <div class="help">En modo CON NTC, el relé se controla por el termistor del tanque superior en GPIO35. En modo SIN NTC, el ESP32 calcula el tiempo usando el volumen leído por ultrasonido.</div>
+            <div class="help">El control se basa en el NTC superior, pero durante calentamiento usa TEMP. PROMEDIO compensada: si el NTC sube 1 °C, el control asume +2 °C. Al dejar de calentar, TEMP. PROMEDIO vuelve a igualarse a la lectura NTC real.</div>
           </div>
         </section>
 
@@ -323,19 +331,19 @@
           <div class="titlebar"><span>CALIBRACION DEL CONO TRUNCADO</span><div class="dots"><span></span><span></span><span></span></div></div>
           <div class="panel">
             <div class="form-grid">
-              <div><label>SUP. VACIO CM</label><input id="heatEmptyInput" type="number" step="0.1" value="19.2"></div>
-              <div><label>SUP. DIST. REF CM</label><input id="heatRefDistInput" type="number" step="0.1" value="14.9"></div>
-              <div><label>SUP. VOL. REF ML</label><input id="heatRefVolInput" type="number" step="10" value="1000"></div>
-              <div><label>SUP. DIAM. INF CM</label><input id="heatBottomInput" type="number" step="0.1" value="15"></div>
-              <div><label>SUP. DIAM. SUP CM</label><input id="heatTopInput" type="number" step="0.1" value="19.5"></div>
-              <div><label>INF. VACIO CM</label><input id="dispEmptyInput" type="number" step="0.1" value="19.2"></div>
-              <div><label>INF. DIST. REF CM</label><input id="dispRefDistInput" type="number" step="0.1" value="14.9"></div>
-              <div><label>INF. VOL. REF ML</label><input id="dispRefVolInput" type="number" step="10" value="1000"></div>
-              <div><label>INF. DIAM. INF CM</label><input id="dispBottomInput" type="number" step="0.1" value="15"></div>
-              <div><label>INF. DIAM. SUP CM</label><input id="dispTopInput" type="number" step="0.1" value="19.5"></div>
+              <div><label>SUP. VACIO CM</label><input id="heatEmptyInput" type="number" step="0.1" value="20.0"></div>
+              <div><label>SUP. DIST. REF CM</label><input id="heatRefDistInput" type="number" step="0.1" value="10.3"></div>
+              <div><label>SUP. VOL. REF ML</label><input id="heatRefVolInput" type="number" step="10" value="2500"></div>
+              <div><label>SUP. DIAM. INF CM</label><input id="heatBottomInput" type="number" step="0.1" value="16.5"></div>
+              <div><label>SUP. DIAM. SUP CM</label><input id="heatTopInput" type="number" step="0.1" value="19.0"></div>
+              <div><label>INF. VACIO CM</label><input id="dispEmptyInput" type="number" step="0.1" value="20.0"></div>
+              <div><label>INF. DIST. REF CM</label><input id="dispRefDistInput" type="number" step="0.1" value="10.3"></div>
+              <div><label>INF. VOL. REF ML</label><input id="dispRefVolInput" type="number" step="10" value="2500"></div>
+              <div><label>INF. DIAM. INF CM</label><input id="dispBottomInput" type="number" step="0.1" value="16.5"></div>
+              <div><label>INF. DIAM. SUP CM</label><input id="dispTopInput" type="number" step="0.1" value="19.0"></div>
             </div>
             <div class="btn-row"><button class="soft" onclick="sendConfig()">GUARDAR CALIBRACION</button></div>
-            <div class="help">La línea amarilla marca el volumen objetivo. La calibración base es 19.2 cm vacío y 14.9 cm para 1 litro.</div>
+            <div class="help">La línea amarilla marca el volumen objetivo. La calibración base es 20.0 cm vacío y 10.3 cm para 2500 ml.</div>
           </div>
         </section>
       </div>
@@ -420,9 +428,16 @@
       return {
         control_mode: $("modeInput").value,
         temp_sensors_enabled: $("tempEnabledInput").checked,
+        lag_compensation_enabled: $("lagEnabledInput").checked,
+        lag_compensation_factor: n("lagFactorInput"),
         target_c:n("targetInput"), initial_temp_c:n("initialInput"), hysteresis_c:n("hystInput"), max_safe_temp_c:n("safeInput"),
         target_volume_ml:n("targetVolInput"), min_target_fill_pct:n("minTargetInput"), max_disp_level_pct_for_transfer:n("lowerSpaceInput"),
         resistance_ohm:n("ohmInput"), mains_voltage_v:n("voltInput"), thermal_efficiency:n("effInput"),
+        hybrid_primary_factor:n("hybridFactorInput"),
+        hybrid_stabilize_s:n("hybridWaitInput"),
+        hybrid_verify_tolerance_c:n("hybridTolInput"),
+        hybrid_correction_pulse_s:n("hybridPulseInput"),
+        hybrid_max_correction_pulses:n("hybridMaxPulsesInput"),
         ntc_fixed_ohm:n("ntcFixedInput"), ntc_r0_ohm:100000, ntc_beta:n("ntcBetaInput"), ntc_heat_offset_c:n("heatOffsetInput"), ntc_disp_offset_c:n("dispOffsetInput"),
         heat_empty_distance_cm:n("heatEmptyInput"), heat_reference_distance_cm:n("heatRefDistInput"), heat_reference_volume_ml:n("heatRefVolInput"), heat_bottom_diameter_cm:n("heatBottomInput"), heat_top_diameter_cm:n("heatTopInput"),
         disp_empty_distance_cm:n("dispEmptyInput"), disp_reference_distance_cm:n("dispRefDistInput"), disp_reference_volume_ml:n("dispRefVolInput"), disp_bottom_diameter_cm:n("dispBottomInput"), disp_top_diameter_cm:n("dispTopInput")
@@ -441,7 +456,7 @@
         const heat = d.tank_heating || {};
         const disp = d.tank_dispensing || {};
 
-        const controlTemp = num(d.temp_c);
+        const controlTemp = Number.isFinite(num(d.temp_promedio_c)) ? num(d.temp_promedio_c) : num(d.temp_c);
         const heatVol = num(heat.volume_ml), heatLevel = num(heat.level_pct), heatTarget = num(heat.level_pct_target), heatDist = num(heat.distance_cm), heatTemp = num(heat.temp_c);
         const dispVol = num(disp.volume_ml), dispLevel = num(disp.level_pct), dispTarget = num(disp.level_pct_target), dispDist = num(disp.distance_cm), dispTemp = num(disp.temp_c);
 
@@ -457,17 +472,17 @@
 
         $("stateTitle").textContent = pretty(d.state || "SIN_DATOS");
         let desc = `Modo: ${d.control_mode || "--"} · Sensor: ${d.temperature_sensor_type || "NTC 100K"} · Objetivo: ${fmt(num(d.target_c),1)} °C · Volumen objetivo: ${fmt(num(d.target_volume_ml),0)} ml · Potencia: ${fmt(num(d.power_w),1)} W · Corriente: ${fmt(num(d.current_a),1)} A · `;
-        if (d.control_mode === "OPEN_LOOP") {
-          desc += `Tiempo estimado: ${fmt(num(d.seconds_to_target_estimated),1)} s. `;
+        if (d.control_mode === "TEMP_ASISTIDO" || d.control_mode === "HYBRID") {
+          desc += `Asistido: límite de tiempo ${fmt(num(d.hybrid_primary_seconds),1)} s / total ${fmt(num(d.open_loop_seconds),1)} s · fase ${d.hybrid_phase || "--"}. `;
           if (d.heating_active) desc += `Progreso: ${fmt(num(d.progress_pct),0)} %. `;
         } else {
-          desc += "Control por NTC superior en GPIO35. ";
+          desc += `Control por TEMP. PROMEDIO: NTC real ${fmt(num(d.temp_real_ntc_c),1)} °C, promedio ${fmt(num(d.temp_promedio_c),1)} °C, factor lag ${fmt(num(d.lag_compensation_factor),1)}. `;
         }
         if (d.alarm) desc += "Alarma: " + d.alarm;
         $("stateDesc").textContent = desc;
 
         setFlag("flagHeater", d.heater ? "RELAY ON" : "RELAY OFF", d.heater ? "ok" : "bad");
-        setFlag("flagMode", d.control_mode || "MODO --", d.control_mode === "TEMP" ? "ok" : "info");
+        setFlag("flagMode", d.control_mode || "MODO --", (d.control_mode === "TEMP" || d.control_mode === "TEMP_ASISTIDO" || d.control_mode === "HYBRID") ? "ok" : "info");
         setFlag("flagReady", d.upper_ready ? "SUPERIOR LISTO" : "NO LISTO", d.upper_ready ? "ok" : "info");
         setFlag("flagTransfer", d.can_transfer ? "TRANSFER SI" : "TRANSFER NO", d.can_transfer ? "ok" : "info");
 
@@ -497,8 +512,9 @@
     function syncInputs(d, heat, disp) {
       if (d.control_mode) $("modeInput").value = d.control_mode;
       if (typeof d.temp_sensors_enabled === "boolean") $("tempEnabledInput").checked = d.temp_sensors_enabled;
-      setVal("targetInput", d.target_c, 1); setVal("initialInput", d.initial_temp_c, 1); setVal("hystInput", d.hysteresis_c, 1); setVal("safeInput", d.max_safe_temp_c, 0); setVal("targetVolInput", d.target_volume_ml, 0); setVal("minTargetInput", d.min_target_fill_pct, 0);
-      setVal("ohmInput", d.resistance_ohm, 1); setVal("voltInput", d.mains_voltage_v, 0); setVal("effInput", d.thermal_efficiency, 2); setVal("lowerSpaceInput", d.max_disp_level_pct_for_transfer, 0); setVal("ntcFixedInput", d.ntc_fixed_ohm, 0); setVal("ntcBetaInput", d.ntc_beta, 0); setVal("heatOffsetInput", d.ntc_heat_offset_c, 1); setVal("dispOffsetInput", d.ntc_disp_offset_c, 1);
+      if (typeof d.lag_compensation_enabled === "boolean") $("lagEnabledInput").checked = d.lag_compensation_enabled;
+      setVal("targetInput", d.target_c, 1); setVal("initialInput", d.initial_temp_c, 1); setVal("hystInput", d.hysteresis_c, 1); setVal("lagFactorInput", d.lag_compensation_factor, 1); setVal("safeInput", d.max_safe_temp_c, 0); setVal("targetVolInput", d.target_volume_ml, 0); setVal("minTargetInput", d.min_target_fill_pct, 0);
+      setVal("ohmInput", d.resistance_ohm, 1); setVal("voltInput", d.mains_voltage_v, 0); setVal("effInput", d.thermal_efficiency, 2); setVal("lowerSpaceInput", d.max_disp_level_pct_for_transfer, 0); setVal("hybridFactorInput", d.hybrid_primary_factor, 2); setVal("hybridWaitInput", d.hybrid_stabilize_s, 1); setVal("hybridTolInput", d.hybrid_verify_tolerance_c, 1); setVal("hybridPulseInput", d.hybrid_correction_pulse_s, 1); setVal("hybridMaxPulsesInput", d.hybrid_max_correction_pulses, 0); setVal("ntcFixedInput", d.ntc_fixed_ohm, 0); setVal("ntcBetaInput", d.ntc_beta, 0); setVal("heatOffsetInput", d.ntc_heat_offset_c, 1); setVal("dispOffsetInput", d.ntc_disp_offset_c, 1);
       syncTankCalInputs(heat, "heat"); syncTankCalInputs(disp, "disp");
     }
 
@@ -519,7 +535,7 @@
     function fmt(v, dec) { return Number.isFinite(v) ? v.toFixed(dec) : "--"; }
     function safePct(v) { return Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0; }
 
-    log("Página lista: NTC 100K, cono truncado, 2 ultrasonidos, 2 modos y sin desborde horizontal.");
+    log("Página lista: NTC 100K, cono truncado y compensación de lag térmico sin desborde horizontal.");
   </script>
 </body>
 </html>
